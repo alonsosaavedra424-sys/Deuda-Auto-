@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tracker Deuda Auto</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; background: #f5f5f3; color: #2c2c2a; min-height: 100vh; padding: 24px 16px; }
+  h1 { font-size: 20px; font-weight: 600; color: #2c2c2a; margin-bottom: 4px; }
+  .subtitle { font-size: 13px; color: #888780; margin-bottom: 24px; }
+  .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 24px; }
+  .metric { background: #fff; border-radius: 12px; border: 0.5px solid #e0dfd8; padding: 14px 16px; }
+  .metric-label { font-size: 11px; color: #888780; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }
+  .metric-value { font-size: 22px; font-weight: 600; }
+  .metric-value.red { color: #a32d2d; }
+  .metric-value.green { color: #3b6d11; }
+  .metric-value.purple { color: #534ab7; }
+  .metric-value.gray { color: #444441; }
+  .card { background: #fff; border-radius: 12px; border: 0.5px solid #e0dfd8; padding: 20px; margin-bottom: 16px; }
+  .card-title { font-size: 13px; font-weight: 600; color: #444441; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 14px; }
+  .progress-outer { background: #f1efe8; border-radius: 99px; height: 14px; margin-bottom: 8px; overflow: hidden; }
+  .progress-inner { height: 14px; border-radius: 99px; background: #1d9e75; transition: width 0.5s; }
+  .progress-labels { display: flex; justify-content: space-between; font-size: 12px; color: #888780; margin-bottom: 20px; }
+  .cuota-mes { font-size: 24px; font-weight: 600; color: #534ab7; text-align: center; margin-bottom: 4px; }
+  .cuota-label { font-size: 12px; color: #888780; text-align: center; margin-bottom: 20px; }
+  .btn-row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-bottom: 20px; }
+  button { padding: 10px 22px; border-radius: 8px; border: 0.5px solid #c8c7be; background: #fff; color: #2c2c2a; font-size: 14px; cursor: pointer; font-family: inherit; transition: background 0.15s; }
+  button:hover { background: #f1efe8; }
+  button.primary { background: #1d9e75; color: #fff; border-color: #1d9e75; }
+  button.primary:hover { background: #0f6e56; }
+  button.danger { background: #fcebeb; color: #a32d2d; border-color: #f09595; }
+  button.danger:hover { background: #f7c1c1; }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; padding: 8px 10px; color: #888780; font-weight: 600; border-bottom: 1px solid #e0dfd8; white-space: nowrap; }
+  td { padding: 9px 10px; border-bottom: 0.5px solid #f1efe8; vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr.pagado td { color: #888780; }
+  tr.actual td { background: #eeedfe; font-weight: 600; }
+  tr.actual td:first-child { border-left: 3px solid #534ab7; }
+  .badge { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 99px; font-weight: 600; }
+  .badge.pagado { background: #eaf3de; color: #3b6d11; }
+  .badge.pendiente { background: #eeedfe; color: #534ab7; }
+  .badge.actual { background: #534ab7; color: #fff; }
+  .mini-bar { background: #f1efe8; border-radius: 99px; height: 6px; width: 80px; display: inline-block; vertical-align: middle; overflow: hidden; }
+  .mini-bar-fill { height: 6px; border-radius: 99px; background: #1d9e75; }
+  .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 100; align-items: center; justify-content: center; }
+  .modal-bg.show { display: flex; }
+  .modal { background: #fff; border-radius: 16px; padding: 24px; width: 90%; max-width: 380px; }
+  .modal h2 { font-size: 16px; font-weight: 600; margin-bottom: 16px; }
+  .modal label { font-size: 13px; color: #888780; display: block; margin-bottom: 4px; margin-top: 12px; }
+  .modal input { width: 100%; padding: 9px 12px; border: 0.5px solid #c8c7be; border-radius: 8px; font-size: 14px; font-family: inherit; }
+  .modal-btns { display: flex; gap: 8px; margin-top: 20px; }
+  .modal-btns button { flex: 1; }
+  .tip { background: #e1f5ee; border-radius: 8px; padding: 10px 14px; font-size: 13px; color: #085041; margin-top: 12px; }
+  .tip strong { font-weight: 600; }
+  @media (max-width: 500px) { .metrics { grid-template-columns: 1fr 1fr; } }
+</style>
+</head>
+<body>
+
+<h1>Deuda Auto</h1>
+<p class="subtitle" id="subtitulo">Cargando...</p>
+
+<div class="metrics">
+  <div class="metric"><div class="metric-label">Falta por pagar</div><div class="metric-value red" id="m-saldo">—</div></div>
+  <div class="metric"><div class="metric-label">Llevas pagado</div><div class="metric-value green" id="m-pagado">—</div></div>
+  <div class="metric"><div class="metric-label">Cuota mensual</div><div class="metric-value purple" id="m-cuota">—</div></div>
+  <div class="metric"><div class="metric-label">Cuotas restantes</div><div class="metric-value gray" id="m-restantes">—</div></div>
+</div>
+
+<div class="card">
+  <div class="card-title">Progreso total</div>
+  <div class="progress-outer"><div class="progress-inner" id="barra-prog"></div></div>
+  <div class="progress-labels"><span id="prog-pct">0% pagado</span><span id="prog-fin">Término: —</span></div>
+
+  <div class="cuota-mes" id="cuota-actual-num">—</div>
+  <div class="cuota-label" id="cuota-actual-label">cuota actual</div>
+
+  <div class="btn-row">
+    <button class="primary" onclick="marcarPagada()"><i style="margin-right:6px;">✓</i> Marcar cuota como pagada</button>
+    <button onclick="abrirConfig()">Ajustar datos</button>
+    <button class="danger" onclick="resetear()">Reiniciar</button>
+  </div>
+
+  <div class="tip" id="tip-text"></div>
+</div>
+
+<div class="card">
+  <div class="card-title">Tabla de cuotas</div>
+  <div class="table-wrap">
+    <table id="tabla-cuotas">
+      <thead><tr>
+        <th>#</th><th>Mes</th><th>Cuota</th><th>Saldo restante</th><th>Estado</th>
+      </tr></thead>
+      <tbody id="tabla-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="modal-bg" id="modal-config">
+  <div class="modal">
+    <h2>Configurar crédito</h2>
+    <label>Deuda total (CLP)</label>
+    <input type="number" id="cfg-deuda" value="4014000" step="1000">
+    <label>Cuota mensual (CLP)</label>
+    <input type="number" id="cfg-cuota" value="111500" step="500">
+    <label>Total de cuotas</label>
+    <input type="number" id="cfg-total" value="36" min="1" max="360">
+    <label>Mes y año de inicio (ej: Julio 2025)</label>
+    <input type="text" id="cfg-inicio" value="Julio 2025">
+    <div class="modal-btns">
+      <button onclick="cerrarConfig()">Cancelar</button>
+      <button class="primary" onclick="guardarConfig()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+
+function clp(n) {
+  return '$' + Math.round(n).toLocaleString('es-CL');
+}
+
+function getState() {
+  const raw = localStorage.getItem('auto_deuda');
+  if (raw) return JSON.parse(raw);
+  return {
+    deudaTotal: 4014000,
+    cuotaMensual: 111500,
+    totalCuotas: 36,
+    mesInicio: "Julio",
+    anioInicio: 2025,
+    pagadas: 11
+  };
+}
+
+function saveState(s) {
+  localStorage.setItem('auto_deuda', JSON.stringify(s));
+}
+
+function parseMesAnio(str) {
+  const parts = str.trim().split(' ');
+  const mes = MESES.indexOf(parts[0]);
+  const anio = parseInt(parts[1]) || 2025;
+  return { mes: mes >= 0 ? mes : 6, anio };
+}
+
+function nombreMes(baseM, baseA, offset) {
+  const total = baseM + offset;
+  const m = total % 12;
+  const a = baseA + Math.floor(total / 12);
+  return MESES[m] + ' ' + a;
+}
+
+function render() {
+  const s = getState();
+  const { deudaTotal, cuotaMensual, totalCuotas, mesInicio, anioInicio, pagadas } = s;
+  const baseM = MESES.indexOf(mesInicio);
+  const baseA = anioInicio;
+
+  const pagadoMonto = pagadas * cuotaMensual;
+  const saldoRestante = Math.max(deudaTotal - pagadoMonto, 0);
+  const restantes = totalCuotas - pagadas;
+  const pct = Math.round((pagadas / totalCuotas) * 100);
+  const cuotaActual = pagadas + 1;
+  const mesActual = nombreMes(baseM, baseA, pagadas);
+  const mesFin = nombreMes(baseM, baseA, totalCuotas - 1);
+
+  document.getElementById('subtitulo').textContent = pagadas === totalCuotas
+    ? '¡Crédito completamente pagado!' : `Cuota ${cuotaActual} de ${totalCuotas} — ${mesActual}`;
+
+  document.getElementById('m-saldo').textContent = clp(saldoRestante);
+  document.getElementById('m-pagado').textContent = clp(pagadoMonto);
+  document.getElementById('m-cuota').textContent = clp(cuotaMensual);
+  document.getElementById('m-restantes').textContent = restantes + ' cuotas';
+
+  document.getElementById('barra-prog').style.width = pct + '%';
+  document.getElementById('prog-pct').textContent = pct + '% pagado';
+  document.getElementById('prog-fin').textContent = 'Término: ' + mesFin;
+
+  document.getElementById('cuota-actual-num').textContent = pagadas < totalCuotas ? 'Cuota ' + cuotaActual + ' — ' + mesActual : '¡Todo pagado!';
+  document.getElementById('cuota-actual-label').textContent = pagadas < totalCuotas ? clp(cuotaMensual) + ' a pagar este mes' : 'Felicitaciones 🎉';
+
+  const mesesRestM = restantes * cuotaMensual / 1000000;
+  const tipText = pagadas === 0
+    ? `<strong>Consejo:</strong> Si pagas $${(cuotaMensual + 20000).toLocaleString('es-CL')} en vez de ${clp(cuotaMensual)}, terminas ${Math.floor(20000 * totalCuotas / cuotaMensual / 12)} meses antes.`
+    : pagadas === totalCuotas
+    ? `<strong>¡Felicitaciones!</strong> Pagaste ${clp(4014000)} en ${totalCuotas} cuotas.`
+    : `<strong>Vas bien:</strong> Llevas pagado ${clp(pagadoMonto)} de ${clp(4014000)}. Faltan ${clp(saldoRestante)} en ${restantes} cuotas. Término: Junio 2028.`;
+  document.getElementById('tip-text').innerHTML = tipText;
+
+  const tbody = document.getElementById('tabla-body');
+  tbody.innerHTML = '';
+  let saldo = deudaTotal;
+  for (let i = 0; i < totalCuotas; i++) {
+    const saldoAntes = saldo;
+    saldo = Math.max(saldo - cuotaMensual, 0);
+    const tr = document.createElement('tr');
+    const esPagada = i < pagadas;
+    const esActual = i === pagadas && pagadas < totalCuotas;
+    tr.className = esPagada ? 'pagado' : (esActual ? 'actual' : '');
+    const estado = esPagada ? '<span class="badge pagado">✓ Pagada</span>' : (esActual ? '<span class="badge actual">← Siguiente</span>' : '<span class="badge pendiente">Pendiente</span>');
+    tr.innerHTML = `
+      <td>${i+1}</td>
+      <td>${nombreMes(baseM, baseA, i)}</td>
+      <td>${clp(cuotaMensual)}</td>
+      <td style="color:${saldo===0?'#3b6d11':'#a32d2d'}">${clp(saldo)}</td>
+      <td>${estado}</td>
+    `;
+    tbody.appendChild(tr);
+    if (esActual) {
+      setTimeout(() => tr.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 300);
+    }
+  }
+}
+
+function marcarPagada() {
+  const s = getState();
+  if (s.pagadas >= s.totalCuotas) { alert('Ya están todas las cuotas pagadas.'); return; }
+  const cuotaN = s.pagadas + 1;
+  const mes = nombreMes(MESES.indexOf(s.mesInicio), s.anioInicio, s.pagadas);
+  if (confirm(`¿Confirmas el pago de la cuota ${cuotaN} (${mes}) por ${clp(s.cuotaMensual)}?`)) {
+    s.pagadas++;
+    saveState(s);
+    render();
+  }
+}
+
+function abrirConfig() {
+  const s = getState();
+  document.getElementById('cfg-deuda').value = s.deudaTotal;
+  document.getElementById('cfg-cuota').value = s.cuotaMensual;
+  document.getElementById('cfg-total').value = s.totalCuotas;
+  document.getElementById('cfg-inicio').value = s.mesInicio + ' ' + s.anioInicio;
+  document.getElementById('modal-config').classList.add('show');
+}
+
+function cerrarConfig() {
+  document.getElementById('modal-config').classList.remove('show');
+}
+
+function guardarConfig() {
+  const s = getState();
+  const { mes, anio } = parseMesAnio(document.getElementById('cfg-inicio').value);
+  s.deudaTotal = parseInt(document.getElementById('cfg-deuda').value) || s.deudaTotal;
+  s.cuotaMensual = parseInt(document.getElementById('cfg-cuota').value) || s.cuotaMensual;
+  s.totalCuotas = parseInt(document.getElementById('cfg-total').value) || s.totalCuotas;
+  s.mesInicio = MESES[mes];
+  s.anioInicio = anio;
+  s.pagadas = Math.min(s.pagadas, s.totalCuotas);
+  saveState(s);
+  cerrarConfig();
+  render();
+}
+
+function resetear() {
+  if (confirm('¿Seguro que quieres reiniciar el contador de cuotas pagadas a cero?')) {
+    const s = getState();
+    s.pagadas = 0;
+    saveState(s);
+    render();
+  }
+}
+
+render();
+</script>
+</body>
+</html>
